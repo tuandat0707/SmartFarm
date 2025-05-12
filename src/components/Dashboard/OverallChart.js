@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -7,77 +7,96 @@ import {
   Title,
   Tooltip,
   Legend,
-  
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const options = {
-  plugins: {
-    title: {
-      display: true,
-      text: "Biều đồ tổng quát",
-      font: {
-        size: 15
-      }
-    },
-    legend: {
+export default function OverallChart({ data, labels }) {
+  const barThickness = labels.length <= 7 ? 28 : 18;
+
+  const options = {
+    plugins: {
+      title: {
+        display: false,
+      },
+      legend: {
         position: 'bottom',
-        align: 'start'
-    }
-  },
-  responsive: true,
-  interaction: {
-    mode: 'index',
-    intersect: true,
-  },
-  scales: {
-    x: {
-      // type: 'linear',
-      // max: 100,
-      stacked: true,
+        align: 'start',
+        labels: {
+          font: {
+            family: 'Poppins',
+            size: 16,
+          },
+          padding: 20,
+        },
+      },
+      tooltip: {
+        bodyFont: {
+          family: 'Poppins',
+        },
+      },
     },
-    y: {
-      stacked: true,
+    responsive: true,
+    interaction: {
+      mode: 'index',
+      intersect: true,
     },
-  },
-};
+    scales: {
+      x: {
+        stacked: true,
+        grid: {
+          display: false,
+        },
+        ticks: {
+          font: {
+            family: 'Poppins',
+            size: 16,
+          },
+        },
+        offset: true,
+      },
+      y: {
+        stacked: true,
+        beginAtZero: true,
+        max: 200,
+        grid: {
+          color: '#E5E7EB',
+        },
+        ticks: {
+          font: {
+            family: 'Poppins',
+            size: 16,
+          },
+          stepSize: 40,
+        },
+      },
+    },
+    elements: {
+      bar: {
+        borderRadius: 8,
+        barThickness,
+      },
+    },
+    layout: {
+      padding: {
+        left: 10,
+        right: 10,
+      },
+    },
+    categoryPercentage: labels.length <= 7 ? 0.9 : 0.85,
+    barPercentage: labels.length <= 7 ? 0.8 : 0.75,
+  };
 
-const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const data = {
-  labels,
-  datasets: [
-    {
-      label: 'Nhiệt độ',
-      data: labels.map(() => Math.floor(Math.random()*100)),
-      backgroundColor: '#0F88F9',
+  const chartData = {
+    labels,
+    datasets: data.map((dataset) => ({
+      label: dataset.name,
+      data: dataset.data,
+      backgroundColor: dataset.color,
       stack: 'Stack 0',
-    },
-    {
-      label: 'Độ ẩm',
-      data: labels.map(() => Math.floor(Math.random()*100)),
-      backgroundColor: '#10D5F8',
-      stack: 'Stack 0'
-    },
-    {
-      label: 'Ánh sáng',
-      data: labels.map(() => Math.floor(Math.random()*100)),
-      // data: []
-      backgroundColor: '#FCA33D',
-      stack: 'Stack 0',
-    },
-  ],
-};
-export default function OverallChart() {
-  return (
-    <Bar options={options} data={data}/>
-  )
+    })),
+  };
+
+  return <Bar options={options} data={chartData} />;
 }

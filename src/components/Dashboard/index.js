@@ -1,176 +1,246 @@
-import React from 'react'
-import DataFarm from './DataFarm'
-import OverallChart from './OverallChart'
-import { faLightbulb, faTemperatureLow,faTemperatureHigh,faNotesMedical} from '@fortawesome/free-solid-svg-icons'
-import { faDroplet, faSeedling } from '@fortawesome/free-solid-svg-icons'
-import "./style.scss"
-import DiagData from '../DiagData/DiagData'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { useGlobalContext } from '../../context/index'
-import getData from '../../utils/getData'
-
-const labels = ['Mon', 'Tue', 'Thir', 'Wed', 'Fri', 'Sat', 'Sun'];
+import React, { useState, useEffect } from 'react';
+import GaugeCard from './GaugeCard';
+import OverallChart from './OverallChart';
+import { Typography, Box } from '@mui/material';
+import axios from 'axios';
+import './style.scss';
+import { faThermometerHalf, faTint, faLeaf } from '@fortawesome/free-solid-svg-icons';
 
 export default function Dashboard() {
-  const [mode, setMode] = React.useState(0);
-  const {temperature,humidity,lightIntensity,strawStatus} = useGlobalContext()
-  const [data,setData] = React.useState([
-    {
-        name: "Nhiệt độ",
-        color: "rgb(15, 136, 249)",
-        data: []
-    },
-    {
-        name: "Độ ẩm",
-        color: "rgb(16, 213, 248)",
-        data: []
-    },
-    {
-        name: "Ánh sáng",
-        color: "rgb(252, 163, 61)",
-        data: []
-    },
-    {
-        name: "Tình trạng cây",
-        color: "rgb(63, 221, 102)",
-        data: []
-    }
-  ])
-  React.useEffect(()=>{
-    const getAllData = async () => {
-      setData([
-        {
-            name: "Nhiệt độ",
-            color: "rgb(15, 136, 249)",
-            data: (await getData('temperature-sensor')).map(e=>parseInt(e))
-        },
-        {
-            name: "Độ ẩm",
-            color: "rgb(16, 213, 248)",
-            data: (await getData('humidity-sensor')).map(e=>parseInt(e))
-        },
-        {
-            name: "Ánh sáng",
-            color: "rgb(252, 163, 61)",
-            data: (await getData('light-sensor')).map(e=>parseInt(e))
-        },
-        {
-            name: "Tình trạng cây",
-            color: "rgb(63, 221, 102)",
-            data: (await getData('strawberry-status')).map(e=>{
-              if (e === 'Good'){
-                return 2
-              }else if (e === 'Dry'){
-                return 1
-              }else{
-                return 0
-              }
-            })
+  const [sensorData, setSensorData] = useState({
+    temperature: 0,
+    humidity: 0,
+    soilMoisture: 0,
+  });
+  const [chartData, setChartData] = useState([]);
+  const [labels, setLabels] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch sensor data for gauges with polling
+  useEffect(() => {
+    const fetchSensorData = async () => {
+      try {
+        const response = await axios.get(`http://localhost:3001/record?sort=desc&_=${Date.now()}`, {
+          timeout: 10000,
+        });
+        console.log('Raw API response:', response.data);
+
+        if (!response.data || response.data.length === 0) {
+          throw new Error('No records found in response');
         }
-      ])
-    }
-    getAllData()
-  },[mode])
-  const handleChange = (e)=>{
-    setMode(e.target.value);
+
+        const sortedRecords = response.data;
+
+        const latestRecords = {
+          temperature: sortedRecords
+            .filter(r => r.sensorName === 'temperature' && r.value != null)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0],
+          humid: sortedRecords
+            .filter(r => r.sensorName === 'humid' && r.value != null)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0],
+          soil: sortedRecords
+            .filter(r => r.sensorName === 'soil' && r.value != null)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0],
+        };
+
+        console.log('Latest records:', {
+          temperature: latestRecords.temperature ? { value: latestRecords.temperature.value, createdAt: latestRecords.temperature.createdAt } : null,
+          humid: latestRecords.humid ? { value: latestRecords.humid.value, createdAt: latestRecords.humid.createdAt } : null,
+          soil: latestRecords.soil ? { value: latestRecords.soil.value, createdAt: latestRecords.soil.createdAt } : null,
+        });
+
+        if (!latestRecords.temperature || !latestRecords.humid || !latestRecords.soil) {
+          console.warn('Missing sensor data:', latestRecords);
+          return; // Retain previous state instead of setting mock data
+        }
+
+        const temperature = parseFloat(latestRecords.temperature.value);
+        const humidity = parseFloat(latestRecords.humid.value);
+        const soilMoisture = parseFloat(latestRecords.soil.value);
+
+        if (isNaN(temperature) || isNaN(humidity) || isNaN(soilMoisture)) {
+          throw new Error(`Invalid sensor values: ${JSON.stringify({ temperature, humidity, soilMoisture })}`);
+        }
+
+        setSensorData({
+          temperature: parseFloat(temperature.toFixed(1)),
+          humidity: parseFloat(humidity.toFixed(1)),
+          soilMoisture: parseFloat(soilMoisture.toFixed(1)),
+        });
+      } catch (error) {
+        console.error('Error fetching sensor data:', {
+          message: error.message,
+          response: error.response ? error.response.data : null,
+          status: error.response ? error.response.status : null,
+        });
+        alert('Failed to fetch sensor data. Check console for details.');
+      }
+    };
+
+    fetchSensorData();
+    const interval = setInterval(fetchSensorData, 60000); // Poll every 60 seconds
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, []);
+
+  // Fetch chart data on mount only
+  useEffect(() => {
+    const fetchChartData = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('http://localhost:3001/daily-average7days');
+        console.log('API Response:', response.data);
+        console.log('Raw API dates:', response.data.temperature.map(day => day.date));
+        const { temperature, humid, soil } = response.data;
+
+        if (!temperature || !humid || !soil || !temperature.length || !humid.length || !soil.length) {
+          throw new Error('Invalid API response: Missing or empty data');
+        }
+
+        // Use API dates directly as strings
+        const dates = temperature.map(day => day.date);
+        console.log('Processed dates:', dates);
+        console.log('Chart labels (final):', dates);
+
+        const transformedData = [
+          {
+            name: 'Temperature',
+            color: '#3B82F6',
+            data: temperature.map((day) => day.average || 0),
+          },
+          {
+            name: 'Humidity',
+            color: '#10B981',
+            data: humid.map((day) => day.average || 0),
+          },
+          {
+            name: 'Soil',
+            color: '#F59E0B',
+            data: soil.map((day) => day.average || 0),
+          },
+        ];
+
+        setLabels(dates);
+        setChartData(transformedData);
+      } catch (error) {
+        console.error('Error fetching chart data:', error.message);
+        const fallbackLabels = [
+          '2025-05-06',
+          '2025-05-07',
+          '2025-05-08',
+          '2025-05-09',
+          '2025-05-10',
+          '2025-05-11',
+          '2025-05-12',
+        ];
+        console.log('Fallback dates:', fallbackLabels);
+        const fallbackData = [
+          {
+            name: 'Temperature',
+            color: '#3B82F6',
+            data: [24.5, 25.0, 24.8, 25.2, 25.5, 25.7, 26.0],
+          },
+          {
+            name: 'Humidity',
+            color: '#10B981',
+            data: [55.0, 56.0, 57.0, 56.5, 57.5, 57.75, 58.0],
+          },
+          {
+            name: 'Soil',
+            color: '#F59E0B',
+            data: [1.0, 1.02, 1.03, 1.04, 1.05, 1.04, 1.06],
+          },
+        ];
+        console.log('Chart labels (final, fallback):', fallbackLabels);
+        setLabels(fallbackLabels);
+        setChartData(fallbackData);
+      } finally {{
+        setLoading(false);
+      }}
+    };
+
+    fetchChartData();
+  }, []);
+
+  const gaugeData = [
+    {
+      name: 'Humidity',
+      curVal: sensorData.humidity,
+      postfix: '%',
+      color: '#10B981',
+      textColor: '#10B981',
+      bgColor: '#ECFDF5',
+      maxVal: 100,
+      icon: faTint,
+    },
+    {
+      name: 'Temperature',
+      curVal: sensorData.temperature,
+      postfix: '°C',
+      color: '#3B82F6',
+      textColor: '#3B82F6',
+      bgColor: '#EFF6FF',
+      maxVal: 50,
+      icon: faThermometerHalf,
+    },
+    {
+      name: 'Soil',
+      curVal: sensorData.soilMoisture,
+      postfix: '%',
+      color: '#F59E0B',
+      textColor: '#F59E0B',
+      bgColor: '#FFF8EB',
+      maxVal: 100,
+      icon: faLeaf,
+    },
+  ];
+
+  const assessHealth = () => {
+    return {
+      status: 'Healthy',
+      color: '#10B981',
+    };
+  };
+
+  const healthStatus = assessHealth();
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <div className="loading-text">Loading<span className="dots"></span></div>
+        <div className="loading-subtext">Fetching dashboard data...</div>
+      </div>
+    );
   }
-  const renderIcon = (param = '0') => {
-    switch(param) {
-      case '0':
-        return <FontAwesomeIcon icon={faTemperatureHigh} style={{ color: data[mode].color}}/>;
-      case '1':
-        return <FontAwesomeIcon icon={faDroplet} style={{ color:data[mode].color}}/>;
-      case '2':
-        return <FontAwesomeIcon icon={faLightbulb} style={{ color:data[mode].color}}/>;
-      case '3':
-        return <FontAwesomeIcon icon={faNotesMedical} style={{ color:data[mode].color}}/>;
-      default:
-        return <FontAwesomeIcon icon={faDroplet} style={{ color:data[mode].color}}/>;
-    }
-  }
-  const renderText = (param = '0') => {
-    switch(param) {
-      case '0':
-        return <div>
-          <h2>Nhiệt độ</h2>
-          <p>{temperature}°C</p>
-        </div>;
-      case '1':
-        return <div>
-        <h2>Độ ẩm</h2>
-        <p>{humidity}%</p>
-      </div>;
-      case '2':
-        return <div>
-          <h2>Ánh sáng</h2>
-          <p>{lightIntensity} Lux</p>
-        </div>;
-      case '3':
-        return <div>
-          <h2>Tình trạng</h2>
-          <p>Good</p>
-        </div>;
-      default:
-        return <div>
-          <h2>Nhiệt độ</h2>
-          <p>{temperature}°C</p>
-        </div>;
-    }
-  }
+
   return (
-    <div className='dashboard'>
-      <div className='dashboard-header'>
-        <div className='dashboard-header-left'>
-        <OverallChart/>
-        <div className='dashboard-header-left-mode'>
-          <button> Ngày</button>
-          <button> Tuần</button>
-          <button className='active'> Tháng</button>
+    <div className="dashboard">
+      <div className="dashboard-header"></div>
+      <div className="dashboard-gauges">
+        {gaugeData.map((data, index) => (
+          <GaugeCard key={index} data={data} />
+        ))}
+      </div>
+      <div className="dashboard-content">
+        <div className="dashboard-content-left">
+          <div className="dashboard-content-left-header">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography className="chart-title">Overall (Last 7 Days)</Typography>
+            </Box>
           </div>
+          <OverallChart data={chartData} labels={labels} />
         </div>
-        <div className='dashboard-header-right'>
-        <div className='dashboard-header-right-top'>
-        <div className='dashboard-header-right-top-left'>
-          <div className='dashboard-header-right-top-left-left'>
-            {renderIcon(mode)}
+        <div className="dashboard-content-right">
+          <div className="health-card">
+            <Typography className="health-title">Overall Health</Typography>
+            <div className="health-status">
+              <div className="health-check"></div>
+              <Typography className="health-text">{healthStatus.status}</Typography>
+            </div>
           </div>
-          <div className='dashboard-header-right-top-left-right'>
-            {renderText(mode)}
-          </div>
-        </div>
-        <div className='dashboard-header-right-top-right'>
-          <select onChange={handleChange}>
-            <option value={0} key={0}>Nhiệt độ</option>
-            <option value={1} key={1}>Độ ẩm</option>
-            <option value={2} key={2}>Ánh sáng</option>
-            <option value={3} key={3}>Tình trạng</option>
-          </select>
-          </div>
-          
-          </div>
-        <div className='dashboard-header-right-bottom'>
-
-        <DiagData data1= {data[mode]} labels={labels}/>
-          <div className='dashboard-header-right-bottom-mode'>
-          <button> Ngày</button>
-          <button> Tuần</button>
-          <button className='active'> Tháng</button>
-          </div>
-</div>
         </div>
       </div>
-      <div className='dashboard-bottom'>
-        <div className='dashboard-bottom-row'>
-
-          <DataFarm data={{curVal: temperature, prevVal: 5 ,isCondition: false, color: "#0F88F9", name: "Nhiệt độ", icon: faTemperatureLow, postfix: "°C"}}/>
-          <DataFarm data={{curVal: humidity, prevVal: 15 ,isCondition: false, color: "#10D5F8",name: "Độ ẩm",  icon: faDroplet, postfix: "%"}}/>
-        </div>
-        <div className='dashboard-bottom-row'>
-
-          <DataFarm data={{curVal: lightIntensity, prevVal: 5 ,isCondition: false, color: "#FCA33D",name: "Ánh sáng",  icon: faLightbulb, postfix: "Lux "}} />
-          <DataFarm data={{isCondition: true, color: "#3FDD66",name: "Tình trạng cây",  icon: faSeedling, curVal: strawStatus}}/>
-      </div>
-        </div>
     </div>
-  )
+  );
 }

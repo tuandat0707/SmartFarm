@@ -1,0 +1,88 @@
+// Extend Login.scss theme with table-specific styles
+.logs-container {
+    display: flex;
+    height: 100vh;
+  }
+  
+  .logs-image {
+    flex: 0 0 70%;
+    overflow: hidden;
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+  
+  .logs-content {
+    flex: 0 0 30%;
+    padding: 20px;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .logs-logo {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    .material-icons {
+      color: #10B981;
+      font-size: 24px;
+      margin-right: 10px;
+    }
+    h1 {
+      color: #10B981;
+      font-family: 'Poppins', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+    }
+  }
+  
+  h1 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 24px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+      font-family: 'Poppins', sans-serif;
+    }
+    th {
+      background-color: #10B981;
+      color: white;
+    }
+    td {
+      background-color: white;
+    }
+    .ellipsis {
+      color: #666;
+      cursor: pointer;
+    }
+  }
+  
+  .error {
+    color: red;
+    text-align: center;
+  }
+  
+  .back-link {
+    text-align: center;
+    a {
+      color: #0075FF;
+      font-family: 'Poppins', sans-serif;
+      text-decoration: none;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }

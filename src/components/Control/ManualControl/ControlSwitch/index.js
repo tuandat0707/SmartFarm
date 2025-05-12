@@ -1,73 +1,88 @@
-import { Grid, Stack, Typography, Slider, Paper, Switch } from '@mui/material';
-import React, { useState, useEffect } from 'react'
+import React from 'react';
+import { Slider, Switch } from '@mui/material';
+import axios from 'axios';
+import './ControlSwitch.scss';
 
+const ControlSwitch = ({ type, device, sliderValue, onSliderChange, onSwitchChange, onDeviceStateChange }) => {
+  const labels = ['Cooling', 'Pump', 'Lights'];
+  const icons = ['ac_unit', 'water_drop', 'lightbulb'];
+  const iconColors = ['#10B981', '#0075FF', '#F59E0B'];
+  const feedIds = ['fan', 'pump', 'led'];
+  const api_url = `http://localhost:3001/`;
 
-import AcUnitIcon from '@mui/icons-material/AcUnit';
-import ShowerIcon from '@mui/icons-material/Shower';
-import LightbulbIcon from '@mui/icons-material/Lightbulb';
-import { deepPurple, lightBlue } from '@mui/material/colors';
-import { StyledSwitch } from './styles';
+  const handleSwitchChange = async (event) => {
+    const newValue = event.target.checked;
+    console.log(`Switch toggled for ${labels[type]} to ${newValue}`);
 
+    try {
+      onSwitchChange(type, newValue);
+      console.log(`Updated state for ${labels[type]} to ${newValue}`);
 
-import { publish } from '../../../../utils/adafruit'
+      const feedId = feedIds[type];
+      const dataToPublish = newValue ? '1' : '0';
+      console.log(`Publishing to ${feedId}: ${dataToPublish}`);
+      await axios.post(`${api_url}api/publish/${feedId}`, { data: dataToPublish });
+      console.log(`Successfully published to ${feedId}`);
 
-
-const ControlSwitch = (props) => {
-    const { device, type } = props
-    const [checked, setChecked] = useState(device.value)
-    useEffect(() => {
-        setChecked(device.value)
-    }, [device])
-
-    const types = [
-        { name: "Điều hòa", icon: <AcUnitIcon sx={{ color: checked ? 'white' : 'black' }} /> },
-        { name: "Máy bơm", icon: <ShowerIcon sx={{ color: checked ? 'white' : 'black' }} /> },
-        { name: "Đèn", icon: <LightbulbIcon sx={{ color: checked ? 'white' : 'black' }} /> }
-    ]
-    const { name, icon } = types[type];
-    const handleChange = () => {
-        setChecked(state => {
-            if (state === true) {
-                publish(device.feed_id, '0')
-            } else {
-                if (device.feed_id === 'fan'){
-                    publish(device.feed_id,'100')
-                }
-                else{
-                    publish(device.feed_id, '1')
-                }
-            }
-            return !state
-        })
-
+      const activityInfo = {
+        userKey: 'heorey123',
+        description: `Turn ${newValue ? 'on' : 'off'} the ${labels[type].toLowerCase()}`,
+        deviceId: type,
+        deviceName: labels[type],
+        activityId: Date.now(),
+      };
+      await axios.post(`${api_url}activity`, { activityInfo });
+      console.log(`Activity logged for ${labels[type]}`);
+    } catch (error) {
+      console.error(`Failed to update ${labels[type]} state:`, error.message);
     }
-    return (
-        <Paper elevation={3} sx={{borderRadius: "2rem", bgcolor: checked ? deepPurple[900] : null }}>
-            <Grid container sx={{width:'140px', height:"140px", padding: 2 }}>
-                <Grid item xs={12} sx={{}}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        {icon}
-                        <Switch
-                            checked={checked}
-                            onChange={handleChange}
-                        />
-                    </Stack>
-                </Grid>
+  };
 
-                <Grid item xs={12} sx={{ }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Slider
-                            valueLabelDisplay
-                            defaultValue={30}
-                            sx={!checked ? {} : { color: 'white' }} />
-                    </Stack>
-                </Grid>
+  return (
+    <div className="control-switch">
+      <div className="header">
+        <div className="title">
+          <span className="material-icons icon" style={{ color: iconColors[type] }}>
+            {icons[type]}
+          </span>
+          <span>{labels[type]}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span className="status">{device.value ? `${labels[type]} On` : `${labels[type]} Off`}</span>
+          <Switch
+            checked={device.value}
+            onChange={handleSwitchChange}
+            sx={{
+              '& .MuiSwitch-thumb': { backgroundColor: iconColors[type] },
+              '& .MuiSwitch-track': { backgroundColor: `${iconColors[type]}80` },
+            }}
+            inputProps={{ 'aria-label': `Toggle ${labels[type]} manual control` }}
+          />
+        </div>
+      </div>
+      <div className="slider-container">
+        <Slider
+          value={sliderValue}
+          onChange={(e, newValue) => onSliderChange(newValue)}
+          min={0}
+          max={100}
+          disabled={!device.value}
+          sx={{
+            color: iconColors[type],
+            height: 8,
+            width: '100%',
+            '& .MuiSlider-thumb': { height: 24, width: 24 },
+          }}
+          aria-label={`${labels[type]} intensity slider`}
+        />
+        <div className="slider-labels">
+          <span>0%</span>
+          <span>{sliderValue}%</span>
+          <span>100%</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-                <Grid item xs={12} sx={{}}>
-                    <Typography sx={!checked ? {} : { color: lightBlue[50] }}>{`${name} ${checked ? 'bật' : 'tắt'}`}</Typography>
-                </Grid>
-            </Grid>
-        </Paper>
-    )
-}
-export default ControlSwitch
+export default ControlSwitch;

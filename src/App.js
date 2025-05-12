@@ -1,43 +1,24 @@
-// import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from "react-router-dom";
-// import { useGlobalContext } from "./context";
-// import Home from "./pages/Home/Home";
-// import Login from "./pages/Login/Login";
-// import Dashboard from "./components/Dashboard";
-// import Datalog from "./components/Datalog/Datalog";
-// function App() {
-//   const {user} = useGlobalContext();
-//   const router = createBrowserRouter(createRoutesFromElements(
-//     user ?(
-// <Route path="/" element={<Home/>}>
-//   <Route path="/" element={<Dashboard/>}/>
-//   <Route path="/datalog" element={<Datalog/>}/>
-
-// </Route>
-//     ): (
-// <Route path="/" element={<Login/>}/>
-//       )
-//   ))
-//   return (
-//     <RouterProvider router={router}/>
-//   );
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useAuthContext } from './hooks/useAuthContext'
-
-
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useAuthContext } from './hooks/useAuthContext';
 import WebsiteLayout from "./layouts/WebsiteLayout";
 import LoginLayout from "./layouts/LoginLayout";
-
 import Login from "./pages/Login";
-import Signup from './pages/Signup'
+import Signup from './pages/Signup';
 import Dashboard from "./components/Dashboard";
 import Control from "./pages/Control";
 import Datalog from "./components/Datalog/Datalog";
+import Logs from "./pages/Logs";
 import { useGlobalContext } from './context/index';
 import client from './utils/adafruit';
 
 const App = () => {
     const { user } = useAuthContext();
-    const { setTemperature, setLightIntensity, setHumidity, setLightBtn, setPumperBtn, setAirBtn,setStrawStatus } = useGlobalContext()
+    const { setTemperature, setLightIntensity, setHumidity, setLightBtn, setPumperBtn, setAirBtn, setStrawStatus } = useGlobalContext();
+
+    console.log('App.jsx: User state:', user);
+    console.log('App.jsx: Current route:', window.location.pathname);
+    console.log('App.jsx: localStorage user:', localStorage.getItem('user'));
+
     client.on('message', (topic, message, packet) => {
         console.log("Received '" + message + "' on '" + topic + "'");
         switch (topic.split("/")[2]) {
@@ -66,29 +47,29 @@ const App = () => {
                 break;
         }
     });
-    return (<BrowserRouter>
-        {user ?
-            <Routes>
-                <Route element={<WebsiteLayout />}>
-                    <Route path="" element={<Dashboard />} />
-                    <Route path="control" element={<Control />} />
-                    <Route path="datalog" element={<Datalog />} />
-                    <Route path="diagnose" element={<Dashboard />} />
-                    <Route path="notification" element={<Dashboard />} />
-                    <Route path="login" element={<Login />} />
-                    <Route path="signup" element={<Signup />} />
-                </Route>
-            </Routes> :
 
+    return (
+        <BrowserRouter>
             <Routes>
+                {/* Routes using LoginLayout (no sidebar) */}
                 <Route element={<LoginLayout />}>
-                    <Route path="/" element={<Navigate to="/login" />} />
-                    <Route path='login' element={<Login />} />
-                    <Route path="signup" element={<Signup />} />
+                    <Route path="/" element={<Login />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<Signup />} />
                 </Route>
+                {/* Routes using WebsiteLayout (with sidebar) */}
+                <Route element={user ? <WebsiteLayout /> : <Login />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/control" element={<Control />} />
+                    <Route path="/datalog" element={<Datalog />} />
+                    <Route path="/diagnose" element={<Dashboard />} />
+                    <Route path="/logs" element={<Logs />} />
+                </Route>
+                {/* Fallback route for debugging */}
+                <Route path="*" element={<div>404: Page Not Found</div>} />
             </Routes>
-        }
-    </BrowserRouter >)
-}
+        </BrowserRouter>
+    );
+};
 
 export default App;

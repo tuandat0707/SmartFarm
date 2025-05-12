@@ -1,45 +1,33 @@
-import React from 'react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTurnUp, faTurnDown } from '@fortawesome/free-solid-svg-icons'
-export default function DataFarm({ data }) {
-    return (
-        <div className='dashboard-bottom-row-container'>
-            <div className='dashboard-bottom-row-container-header'>
-                <h2>{data.name}
-                </h2>
-                {!data.isCondition && (
-                    data.curVal > data.prevVal ? (
-                        <div className='dashboard-bottom-row-container-header-right'><FontAwesomeIcon icon={faTurnUp} />
-                            <p>{data.curVal - data.prevVal}%</p>
-                        </div>
-                    ) : (
-                        <div className='dashboard-bottom-row-container-header-right down'><FontAwesomeIcon icon={faTurnDown} />
-                            <p>{data.curVal - data.prevVal}%</p>
-                        </div>
-                    )
-                )
-                }
-            </div>
-            <div className='dashboard-bottom-row-container-body'>
-                <div className='icon'>
-                    <FontAwesomeIcon icon={data.icon} style={{ color: data.color }} />
-                </div>
-                <h2>{data.curVal}{data.postfix}</h2>
-            </div>
-            <div className='dashboard-bottom-row-container-bottom'>
-                {/* <div className='icon'>icon</div> */}
-                {!data.isCondition && (
-                    <>
-                        <div className='dashboard-bottom-row-container-bottom-cicle' style={{ backgroundColor: `${data.color}` }}>
+import React from 'react';
+import { CircularProgress, Typography } from '@mui/material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
-                        </div>
-                        <div className='dashboard-bottom-row-container-bottom-line'>
-                            <div style={{ width: `${data.curVal}% `, backgroundColor: `${data.color}` }}></div>
-                        </div>
-                    </>
+export default function GaugeCard({ data }) {
+  const { name, curVal, postfix, color, icon, maxVal } = data;
+  const normalizedValue = postfix === '%' ? curVal : (curVal / maxVal) * 100; // Normalize for progress (0-100)
 
-                )}
-            </div>
+  return (
+    <div className="gauge-card">
+      <Typography variant="h6" sx={{ fontFamily: 'Inter', color: '#111111', fontSize: '16px' }}>
+        {name}
+      </Typography>
+      <div className="gauge-card-body">
+        <div className="gauge-wrapper">
+          <CircularProgress
+            variant="determinate"
+            value={normalizedValue}
+            size={100}
+            thickness={4}
+            sx={{ color }}
+          />
+          <div className="gauge-value">
+            <Typography sx={{ fontFamily: 'Inter', fontSize: '24px', fontWeight: 'bold' }}>
+              {curVal}{postfix}
+            </Typography>
+          </div>
         </div>
-    )
+        <FontAwesomeIcon icon={icon} style={{ color, fontSize: '30px' }} />
+      </div>
+    </div>
+  );
 }
